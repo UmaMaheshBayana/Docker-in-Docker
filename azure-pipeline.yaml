@@ -1,0 +1,75 @@
+trigger:
+  branches:
+    include:
+    - master
+
+resources:
+  - repo: self
+  
+variables:
+  - name: acrRegistry
+    value: "$acrname.azurecr.io"
+  - name: acrRepository
+    value: "$reponame"            
+  - name: acrusername
+    value: "$acrToken"
+  - name: azureACRToken
+    value: "$tokanvalue" 
+  - name: PoolName
+    value: $AzurePoolName
+  - name: OrganizationURL
+    value: $OrganizationURL
+  - name: Pat
+    value: $OrganizationPATToken     
+
+stages:
+- stage: Build       
+
+  displayName: Build Agent Images
+  jobs:  
+  - job: Build
+    displayName: Build Linux Self Hosted Agent
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+       - task: CmdLine@2
+         displayName: 'Build and Push Linux Image'
+         inputs:
+            script: |
+              docker build -t agents:latest $PathOfTheDockerfile/
+              docker login $(acrRegistry) --username $(acrusername) --password $(azureACRToken)
+              docker tag agents $(acrRegistry)/$(acrRepository)
+              docker push $(acrRegistry)/$(acrRepository)
+ 
+
+- stage: DeployDockerBuidAgentStage
+  displayName: Deploy Agents on AKS cluster
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+  - job: DeployDockerBuidAgentJob
+    condition: succeeded()
+    displayName: Deploy Docker Buid Agents Job
+    pool:
+      vmImage:  ubuntu-latest
+    steps:
+          - task: Kubernetes@1
+            inputs:
+              connectionType: 'Kubernetes Service Connection'
+              kubernetesServiceEndpoint: '$AzureDevOpsServiceConnectionName'
+              command: 'login'  
+            
+          - task: CmdLine@2
+            displayName: 'Replace Tokens'
+            inputs:
+                script: |
+                   sed -i 's,ACR_NAME,$(acrRegistry),g' $PathToDeployYamlFile/kaniko-deployment.yaml
+                   sed -i 's,REPOSITORY_NAME,$(acrRepository),g' $PathToDeployYamlFile/kaniko-deployment.yaml
+                   
+          - task: CmdLine@2
+            displayName: 'Deploy'
+            inputs:
+                script: |
+                  kubectl apply -f $PathToDeployYamlFile/kaniko-deployment.yaml  
+
+  
