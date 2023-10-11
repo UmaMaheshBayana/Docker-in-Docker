@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docker-dind-deploymentv1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: docker-dind-podv1
+  template:
+    metadata:
+      labels:
+        app: docker-dind-podv1
+    spec:
+      containers:
+      - name: docker-dind-containerv1
+        image: ACR_NAME/REPOSITORY_NAME:latest
+        securityContext:
+          privileged: true  # This allows running Docker in Docker
+        ports:
+        - containerPort: 2375 
+        env:
+          - name: AZP_URL
+            valueFrom:
+              secretKeyRef:
+                name: azdevops
+                key: AZP_URL
+          - name: AZP_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: azdevops
+                key: AZP_TOKEN
+          - name: AZP_POOL
+            valueFrom:
+              secretKeyRef:
+                name: azdevops
+                key: AZP_POOL
+      imagePullSecrets:
+        - name: acr-secret-api 
+
