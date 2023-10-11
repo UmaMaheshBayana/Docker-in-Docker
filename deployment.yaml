@@ -36,5 +36,5 @@ spec:
                 name: azdevops
                 key: AZP_POOL
       imagePullSecrets:
-        - name: acr-secret-api 
+        - name: acr-secret-api # create Azure ACR secrets(docker-server,docker-username,docker,) in Azure Kubernetes Service
 
